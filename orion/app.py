@@ -77,7 +77,7 @@ def load_configs(domain_config_name=None):
     """Load all configurations"""
     config = load_configs_dir('configs')
     if domain_config_name is None:
-        domain_config_name = get_config(config, 'config.name')
+        domain_config_name = get_config(config, 'orion.name')
     domain_config = dict()
     if domain_config_name is not None:
         domain_config = load_configs_dir('configs/' + domain_config_name)
