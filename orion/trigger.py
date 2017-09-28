@@ -120,7 +120,6 @@ class TriggerExecutionThread(threading.Thread):
                 if execution_context.is_expired():
                     execution_context.reject(TimeoutError())
                 else:
-                    execution_context.status = TriggerExecutionStatus.EXECUTING
                     self.manager.run_trigger(execution_context)
             except Empty:
                 time.sleep(0.001)
@@ -257,6 +256,8 @@ class TriggerManager(object):
 
     def run_trigger(self, execution_context):
         """Run the trigger"""
+        execution_context.status = TriggerExecutionStatus.EXECUTING
+
         trigger = execution_context.trigger
         self.current_trigger = trigger
         self.current_trigger_priority = execution_context.priority
