@@ -68,8 +68,8 @@ class TriggerExecutionContext(object):
         self.status = TriggerExecutionStatus.REJECTED
         self.lock.release()
 
-    def __cmp__(self, other):
-        return (self.priority > other.priority) - (self.priority < other.priority)
+    def __lt__(self, other):
+        return self.priority < other.priority
 
 class TriggerCondition(object):
     """Represent a trigger condition"""
@@ -149,6 +149,7 @@ class TriggerManager(object):
     def on_shutdown(self):
         """function called on shutdown"""
         self.executor.stop()
+        self.event.set()
 
     def add_stop_hook(self, handler):
         """Register a handler for when trigger needs to be stopped"""
