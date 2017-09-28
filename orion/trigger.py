@@ -122,7 +122,8 @@ class TriggerExecutionThread(threading.Thread):
                 else:
                     self.manager.run_trigger(execution_context)
             except Empty:
-                time.sleep(0.001)
+                self.manager.event.clear()
+                self.manager.event.wait()
 
     def stop(self):
         """stop the thread"""
@@ -140,6 +141,7 @@ class TriggerManager(object):
         self.timeout = 3
         self.app_context = None
         self.stop_hooks = list()
+        self.event = threading.Event()
         self.queue = PriorityQueue()
         self.executor = TriggerExecutionThread(self)
         self.executor.start()
@@ -199,6 +201,8 @@ class TriggerManager(object):
 
         if not wait:
             return result
+
+        self.event.set()
 
         return self.wait_for_finish(execution_context)
 
