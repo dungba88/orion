@@ -10,9 +10,10 @@ from queue import PriorityQueue, Empty
 class TriggerExecutionStatus(Enum):
     """Represent the status of the execution"""
     CREATED = 1
-    EXECUTING = 2
-    FINISHED = 3
-    REJECTED = 4
+    PENDING = 2
+    EXECUTING = 3
+    FINISHED = 4
+    REJECTED = 5
 
 class TriggerExecutionContext(object):
     """The context a trigger can access whenever executed"""
@@ -119,6 +120,7 @@ class TriggerExecutionThread(threading.Thread):
                 if execution_context.is_expired():
                     execution_context.reject(TimeoutError())
                 else:
+                    execution_context.status = TriggerExecutionStatus.EXECUTING
                     self.manager.run_trigger(execution_context)
             except Empty:
                 time.sleep(0.001)
@@ -191,6 +193,7 @@ class TriggerManager(object):
             execution_context.start_lock()
 
             if wait:
+                execution_context.status = TriggerExecutionStatus.PENDING
                 self.queue.put(execution_context)
             else:
                 result = self.run_trigger(execution_context)
