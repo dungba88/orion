@@ -68,6 +68,15 @@ class TriggerExecutionContext(object):
         self.status = TriggerExecutionStatus.REJECTED
         self.lock.release()
 
+    def wait_for_finish(self, timeout):
+        """Wait for the execution to finish"""
+        self.acquire_lock(timeout=timeout)
+        if not self.is_completed():
+            return None
+        if self.exception is not None:
+            raise self.exception # pylint: disable-msg=E0702
+        return self.result
+
     def __lt__(self, other):
         return self.priority < other.priority
 
@@ -198,27 +207,17 @@ class TriggerManager(object):
                 execution_context.status = TriggerExecutionStatus.PENDING
                 self.queue.put(execution_context)
             else:
-                result = self.run_trigger(execution_context)
+                self.run_trigger(execution_context)
 
-        if not wait:
-            return result
+        if wait:
+            # notify execution thread
+            self.event.set()
 
-        self.event.set()
-
-        return self.wait_for_finish(execution_context)
+        return execution_context
 
     def get_matching_triggers(self, trigger_configs, execution_context):
         """get the first trigger which satisifies the condition"""
         return list(filter(lambda cfg: cfg.check_condition(execution_context), trigger_configs))
-
-    def wait_for_finish(self, execution_context):
-        """Wait for the execution to finish"""
-        execution_context.acquire_lock(timeout=self.timeout)
-        if not execution_context.is_completed():
-            return None
-        if execution_context.exception is not None:
-            raise execution_context.exception # pylint: disable=E0702
-        return execution_context.result
 
     def get_handlers(self, name):
         """get all handlers registered for an event"""
