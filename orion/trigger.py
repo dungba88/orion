@@ -44,13 +44,13 @@ class TriggerExecutionContext(object):
 
     def is_completed(self):
         """check if the execution is completed, whether finished successfully or failed"""
-        return self.status == TriggerExecutionStatus.FINISHED \
-                or self.status == TriggerExecutionStatus.REJECTED
+        return self.monitor.is_set()
 
     def finish(self, result=None):
         """mark execution as finished"""
         if self.is_completed():
-            return
+            raise RuntimeError('Execution has already completed')
+
         self.result = result
         self.status = TriggerExecutionStatus.FINISHED
         self.monitor.set()
@@ -58,7 +58,8 @@ class TriggerExecutionContext(object):
     def reject(self, ex=None):
         """mark execution as rejected"""
         if self.is_completed():
-            return
+            raise RuntimeError('Execution has already completed')
+
         self.exception = ex
         self.status = TriggerExecutionStatus.REJECTED
         self.monitor.set()
