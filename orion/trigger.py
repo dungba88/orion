@@ -18,15 +18,14 @@ class TriggerExecutionStatus(Enum):
 class TriggerExecutionContext(object):
     """The context a trigger can access whenever executed"""
 
-    def __init__(self, event, event_name, trigger):
+    def __init__(self, event, event_name):
         self.event = event
         self.event_name = event_name
-        self.trigger = trigger
         self.trigger_manager = None
         self.result = None
         self.exception = None
         self.status = TriggerExecutionStatus.CREATED
-        self.lock = threading.Lock()
+        self.monitor = threading.Event()
         self.priority = 0
         self.time_to_live = -1
         self.start_time = -1
@@ -34,7 +33,7 @@ class TriggerExecutionContext(object):
     def start_lock(self):
         """start locking the context"""
         self.start_time = time.time()
-        self.lock.acquire(blocking=False)
+        self.monitor.clear()
 
     def is_expired(self):
         """check if the execution is expired"""
@@ -42,10 +41,6 @@ class TriggerExecutionContext(object):
             return False
         cur_time = time.time()
         return cur_time - self.start_time >= self.time_to_live
-
-    def acquire_lock(self, timeout=-1):
-        """start locking the context"""
-        self.lock.acquire(timeout=timeout)
 
     def is_completed(self):
         """check if the execution is completed, whether finished successfully or failed"""
@@ -58,7 +53,7 @@ class TriggerExecutionContext(object):
             return
         self.result = result
         self.status = TriggerExecutionStatus.FINISHED
-        self.lock.release()
+        self.monitor.set()
 
     def reject(self, ex=None):
         """mark execution as rejected"""
@@ -66,11 +61,11 @@ class TriggerExecutionContext(object):
             return
         self.exception = ex
         self.status = TriggerExecutionStatus.REJECTED
-        self.lock.release()
+        self.monitor.set()
 
     def wait_for_finish(self, timeout):
         """Wait for the execution to finish"""
-        self.acquire_lock(timeout=timeout)
+        self.monitor.wait(timeout=timeout)
         if not self.is_completed():
             return None
         if self.exception is not None:
@@ -183,7 +178,7 @@ class TriggerManager(object):
             logging.getLogger(__name__).warning("Event. " + name + ". not registered")
             return
 
-        execution_context = TriggerExecutionContext(event, name, None)
+        execution_context = TriggerExecutionContext(event, name)
         trigger_configs = self.get_matching_triggers(trigger_configs, execution_context)
         if len(trigger_configs) == 0:
             return
@@ -193,10 +188,9 @@ class TriggerManager(object):
         if max_priority > self.current_trigger_priority:
             self.stop_all_actions()
 
-        result = None
         for config in trigger_configs:
             # build the execution context
-            execution_context = TriggerExecutionContext(event, name, None)
+            execution_context = TriggerExecutionContext(event, name)
             execution_context.trigger = config.trigger
             execution_context.trigger_manager = self
             execution_context.priority = config.priority
