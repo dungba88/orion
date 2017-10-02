@@ -32,6 +32,7 @@ class TriggerExecutionContext(object):
 
     def start_lock(self):
         """start locking the context"""
+        self.status = TriggerExecutionStatus.PENDING
         self.start_time = time.time()
         self.monitor.clear()
 
@@ -199,7 +200,6 @@ class TriggerManager(object):
             execution_context.start_lock()
 
             if wait:
-                execution_context.status = TriggerExecutionStatus.PENDING
                 self.queue.put(execution_context)
             else:
                 self.run_trigger(execution_context)
